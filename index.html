@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REKAPAN HARIAN NOTA TRANSAKSI</title>
+    <!-- Library jsPDF dan dependensinya (html2canvas) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* --- General Styling --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* --- Styling untuk area header dan tombol aksi --- */
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header-actions h1 {
+            margin: 0;
+            border: none;
+            padding: 0;
+        }
+        .action-buttons-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* --- Form Styling --- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+            background-color: #fff;
+        }
+
+        input[readonly] {
+            background-color: #e9ecef;
+            cursor: not-allowed;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #0056b3;
+        }
+
+        /* --- Styling untuk tombol aksi --- */
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button.edit-btn {
+            background-color: #ffc107;
+            color: #212529;
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+        button.edit-btn:hover {
+            background-color: #e0a800;
+        }
+
+        button.delete-btn {
+            background-color: #dc3545;
+            padding: 8px 12px;
+            font-size: 0.9em;
+        }
+        button.delete-btn:hover {
+            background-color: #c82333;
+        }
+        
+        button#cancelEditBtn {
+            background-color: #6c757d;
+            margin-left: 10px;
+        }
+        button#cancelEditBtn:hover {
+            background-color: #5a6268;
+        }
+
+        button#downloadPdfBtn {
+            background-color: #6f42c1;
+            margin-bottom: 15px;
+        }
+        button#downloadPdfBtn:hover {
+            background-color: #5a32a3;
+        }
+
+        /* --- Styling untuk tombol aksi utama --- */
+        button#resetDataBtn {
+            background-color: #dc3545; /* Merah untuk Reset */
+        }
+        button#resetDataBtn:hover {
+            background-color: #c82333;
+        }
+        button#refreshBtn {
+            background-color: #17a2b8; /* Cyan untuk Refresh */
+        }
+        button#refreshBtn:hover {
+            background-color: #138496;
+        }
+        button#logoutBtn {
+            background-color: #fd7e14; /* Oranye untuk Logout */
+        }
+        button#logoutBtn:hover {
+            background-color: #e96a00;
+        }
+        button#backupAllBtn {
+            background-color: #6c757d; /* Abu-abu Tua untuk Backup */
+        }
+        button#backupAllBtn:hover {
+            background-color: #5a6268;
+        }
+
+        button#downloadLaporanPdfBtn {
+            background-color: #343a40;
+        }
+        button#downloadLaporanPdfBtn:hover {
+            background-color: #23272b;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* --- Table Styling --- */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        /* --- CSS untuk nilai minus --- */
+        .negative-value {
+            color: red;
+            font-weight: bold;
+        }
+
+        /* --- Report Section Styling --- */
+        .filter-section {
+            background-color: #eef5ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            font-size: 0.9em;
+        }
+
+        .report-display {
+            margin-top: 20px;
+        }
+
+        /* --- Styling untuk bagian total dalam bentuk tabel --- */
+        .total-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+        }
+        .total-section h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .summary-table td {
+            padding: 8px 12px;
+            border: none;
+            vertical-align: middle;
+        }
+        .summary-table td:first-child {
+            font-weight: normal;
+        }
+        .summary-table td:last-child {
+            text-align: right;
+            font-weight: bold;
+        }
+        .summary-table tr td:last-child.negative-value {
+            color: red;
+        }
+        .summary-table tr.labora td {
+            font-size: 1.1em;
+            border-top: 2px solid #ccc;
+            padding-top: 12px;
+        }
+        .summary-table tr.labora td:last-child {
+            color: #28a745;
+        }
+        .summary-table tr.labora td:last-child.negative-value {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="mainAppContainer">
+        <!-- Struktur header dengan tombol aksi -->
+        <div class="header-actions">
+            <h1>REKAPAN HARIAN NOTA TRANSAKSI</h1>
+            <div class="action-buttons-group">
+                <button id="resetDataBtn">Reset Semua Data</button>
+                <button id="refreshBtn">Refresh</button>
+                <button id="backupAllBtn">Backup Semua Data ke PDF</button>
+                <button id="logoutBtn">Logout</button>
+            </div>
+        </div>
+
+        <!-- Form Input Transaksi -->
+        <section id="input-section">
+            <h2>Input Transaksi Baru</h2>
+            <form id="transactionForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tanggal">Tanggal</label>
+                        <input type="date" id="tanggal" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="namaSupplier">Nama Supplier</label>
+                        <input type="text" id="namaSupplier" placeholder="Contoh: Pak Budi" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="jumlahMasuk">Jumlah Ikan Masuk (kg)</label>
+                        <input type="number" id="jumlahMasuk" step="0.01" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="jumlahTerjual">Jumlah Ikan Terjual (kg)</label>
+                        <input type="number" id="jumlahTerjual" step="0.01" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="diEs">Di Es (kg)</label>
+                        <input type="number" id="diEs" step="0.01" placeholder="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="komisi">Komisi (Rp)</label>
+                        <input type="number" id="komisi" min="1" max="20000000" step="0.01" placeholder="1 - 20000000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="biaya">Biaya Lain</label>
+                        <input type="number" id="biaya" min="1" max="20000000" step="0.01" placeholder="1 - 20000000">
+                    </div>
+                    <div class="form-group">
+                        <label for="notaRincian">Nota Rincian / Total Penjualan (Rp)</label>
+                        <!-- PERUBAHANAN: Ubah max dan placeholder untuk nota rincian -->
+                        <input type="number" id="notaRincian" min="1" max="600000000" step="0.01" placeholder="1 - 600000000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="notaSupplier">Nota Supplier / Harga Beli (Rp)</label>
+                        <!-- PERUBAHANAN: Ubah max dan placeholder untuk nota supplier -->
+                        <input type="number" id="notaSupplier" min="1" max="600000000" step="0.01" placeholder="1 - 600000000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pendapatanLain">Pendapatan Lain (Otomatis)</label>
+                        <input type="number" id="pendapatanLain" step="1000" placeholder="0" readonly>
+                    </div>
+                </div>
+                <button type="submit" id="submitBtn">Tambah Transaksi</button>
+                <button type="button" id="cancelEditBtn" style="display:none;">Batal</button>
+            </form>
+        </section>
+
+        <!-- Tabel Rekapan Nota -->
+        <section id="rekapan-section">
+            <div id="printableArea">
+                <h2>Rekapan Semua Nota Transaksi</h2>
+                <button id="downloadPdfBtn">Download PDF</button>
+                <div class="table-container">
+                    <table id="transactionTable">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Supplier</th>
+                                <th>Masuk (kg)</th>
+                                <th>Terjual (kg)</th>
+                                <th>Di Es (kg)</th>
+                                <th>Selisih (kg)</th>
+                                <th>Komisi (Rp)</th>
+                                <th>Biaya (Rp)</th>
+                                <th>Nota Jual (Rp)</th>
+                                <th>Nota Beli (Rp)</th>
+                                <th>Pendapatan Lain (Rp)</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTableBody">
+                            <!-- Data akan dimasukkan di sini oleh JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Laporan Lengkap dengan Filter -->
+        <section id="laporan-section">
+            <h2>Laporan Lengkap (Terfilter)</h2>
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label for="filterDariTanggal">Dari Tanggal</label>
+                    <input type="date" id="filterDariTanggal">
+                </div>
+                <div class="filter-group">
+                    <label for="filterSampaiTanggal">Sampai Tanggal</label>
+                    <input type="date" id="filterSampaiTanggal">
+                </div>
+                <div class="filter-group">
+                    <label for="filterSupplier">Filter Supplier</label>
+                    <select id="filterSupplier">
+                        <option value="Semua">Semua Supplier</option>
+                    </select>
+                </div>
+                <button id="tampilkanLaporanBtn">Tampilkan Laporan</button>
+                <button id="downloadLaporanPdfBtn">Download Laporan PDF</button>
+            </div>
+            <div id="reportDisplay" class="report-display">
+                <!-- Laporan akan ditampilkan di sini -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Tampilan saat logout -->
+    <div id="loggedOutView" class="logged-out-view" style="display: none;">
+        <div class="success-icon">✓</div>
+        <h2>Aplikasi Telah Di-reset</h2>
+        <p>Semua data telah dihapus dari aplikasi.</p>
+        <p>Anda dapat memuat ulang halaman ini untuk memulai dari awal.</p>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMEN DOM ---
+    const form = document.getElementById('transactionForm');
+    const tableBody = document.getElementById('transactionTableBody');
+    const reportDisplay = document.getElementById('reportDisplay');
+    const tampilkanLaporanBtn = document.getElementById('tampilkanLaporanBtn');
+    const filterSupplierSelect = document.getElementById('filterSupplier');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    const downloadLaporanPdfBtn = document.getElementById('downloadLaporanPdfBtn');
+    const backupAllBtn = document.getElementById('backupAllBtn');
+    // Tambahkan elemen tombol aksi baru
+    const resetDataBtn = document.getElementById('resetDataBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // --- STATE MANAGEMENT ---
+    let editingTransactionId = null;
+    
+    // Set tanggal default ke hari ini
+    document.getElementById('tanggal').valueAsDate = new Date();
+
+    // --- FUNGSI UTAMA ---
+
+    const getTransactions = () => {
+        try {
+            const transactions = localStorage.getItem('transactions');
+            return transactions ? JSON.parse(transactions) : [];
+        } catch (e) {
+            console.error("Gagal membaca data dari localStorage:", e);
+            return [];
+        }
+    };
+
+    const saveTransactions = (transactions) => {
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+    };
+
+    const formatRupiah = (angka) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+        }).format(angka);
+    };
+    
+    const formatDate = (dateString) => {
+        const options = { day: 'numeric', month: 'long', year: 'numeric' };
+        return new Date(dateString).toLocaleDateString('id-ID', options);
+    };
+
+    const resetForm = () => {
+        form.reset();
+        document.getElementById('tanggal').valueAsDate = new Date();
+        editingTransactionId = null;
+        submitBtn.textContent = 'Tambah Transaksi';
+        cancelEditBtn.style.display = 'none';
+        document.querySelector('#input-section h2').textContent = 'Input Transaksi Baru';
+    };
+
+    const populateFormForEdit = (id) => {
+        const transactions = getTransactions();
+        const transactionToEdit = transactions.find(t => t.id === id);
+
+        if (transactionToEdit) {
+            document.getElementById('tanggal').value = transactionToEdit.tanggal;
+            document.getElementById('namaSupplier').value = transactionToEdit.namaSupplier;
+            document.getElementById('jumlahMasuk').value = transactionToEdit.jumlahMasuk;
+            document.getElementById('jumlahTerjual').value = transactionToEdit.jumlahTerjual;
+            document.getElementById('diEs').value = transactionToEdit.diEs;
+            document.getElementById('komisi').value = transactionToEdit.komisi;
+            document.getElementById('biaya').value = transactionToEdit.biaya;
+            document.getElementById('notaRincian').value = transactionToEdit.notaRincian;
+            document.getElementById('notaSupplier').value = transactionToEdit.notaSupplier;
+            updatePendapatanLain();
+
+            editingTransactionId = id;
+            submitBtn.textContent = 'Update Transaksi';
+            cancelEditBtn.style.display = 'inline-block';
+            document.querySelector('#input-section h2').textContent = 'Edit Transaksi';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const renderTransactionTable = () => {
+        const transactions = getTransactions();
+        tableBody.innerHTML = '';
+
+        if (transactions.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="12" style="text-align:center;">Belum ada data transaksi.</td></tr>`;
+            return;
+        }
+
+        transactions.forEach(trans => {
+            const row = document.createElement('tr');
+            const selisihClass = parseFloat(trans.selisih) < 0 ? 'negative-value' : '';
+            const pendapatanLainClass = trans.pendapatanLain < 0 ? 'negative-value' : '';
+
+            row.innerHTML = `
+                <td>${formatDate(trans.tanggal)}</td>
+                <td>${trans.namaSupplier}</td>
+                <td>${trans.jumlahMasuk}</td>
+                <td>${trans.jumlahTerjual}</td>
+                <td>${trans.diEs}</td>
+                <td><span class="${selisihClass}">${trans.selisih}</span></td>
+                <td>${formatRupiah(trans.komisi)}</td>
+                <td>${formatRupiah(trans.biaya)}</td>
+                <td>${formatRupiah(trans.notaRincian)}</td>
+                <td>${formatRupiah(trans.notaSupplier)}</td>
+                <td><span class="${pendapatanLainClass}">${formatRupiah(trans.pendapatanLain)}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="edit-btn" data-id="${trans.id}">Edit</button>
+                        <button class="delete-btn" data-id="${trans.id}">Hapus</button>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    };
+
+    const updateSupplierFilter = () => {
+        const transactions = getTransactions();
+        const suppliers = [...new Set(transactions.map(t => t.namaSupplier))];
+        filterSupplierSelect.innerHTML = '<option value="Semua">Semua Supplier</option>';
+        suppliers.forEach(supplier => {
+            const option = document.createElement('option');
+            option.value = supplier;
+            option.textContent = supplier;
+            filterSupplierSelect.appendChild(option);
+        });
+    };
+
+    // --- EVENT HANDLER ---
+
+    const updatePendapatanLain = () => {
+        const notaRincian = parseFloat(document.getElementById('notaRincian').value) || 0;
+        const notaSupplier = parseFloat(document.getElementById('notaSupplier').value) || 0;
+        const pendapatanLain = notaRincian - notaSupplier;
+        document.getElementById('pendapatanLain').value = pendapatanLain;
+    };
+    document.getElementById('notaRincian').addEventListener('input', updatePendapatanLain);
+    document.getElementById('notaSupplier').addEventListener('input', updatePendapatanLain);
+
+    cancelEditBtn.addEventListener('click', resetForm);
+
+    // Event listener untuk tombol reset data
+    resetDataBtn.addEventListener('click', () => {
+        const isConfirmed = confirm('PERINGATAN: Ini akan menghapus SEMUA data transaksi yang tersimpan. Apakah Anda yakin ingin melanjutkan?');
+        if (isConfirmed) {
+            localStorage.removeItem('transactions');
+            renderTransactionTable();
+            updateSupplierFilter();
+            alert('Semua data berhasil direset.');
+        }
+    });
+
+    // Event listener untuk tombol refresh
+    refreshBtn.addEventListener('click', () => {
+        renderTransactionTable();
+        updateSupplierFilter();
+        // Berikan umpan balik singkat
+        const originalText = refreshBtn.textContent;
+        refreshBtn.textContent = 'Di-refresh...';
+        setTimeout(() => {
+            refreshBtn.textContent = originalText;
+        }, 1000);
+    });
+
+    // Event listener untuk tombol logout (tanpa unduh)
+    logoutBtn.addEventListener('click', () => {
+        const isConfirmed = confirm('PERINGATAN: Ini akan mereset semua data dan menampilkan layar logout. Apakah Anda yakin?');
+        if (isConfirmed) {
+            // Hapus data dari localStorage
+            localStorage.removeItem('transactions');
+            
+            // Tampilkan tampilan logout
+            document.getElementById('mainAppContainer').style.display = 'none';
+            document.getElementById('loggedOutView').style.display = 'block';
+        }
+    });
+
+    // Fungsi pembantu untuk membuat PDF dari tabel
+    const generatePdfFromTable = async (tableElement, fileName, title) => {
+        if (!window.html2canvas || !window.jspdf || !window.jspdf.jsPDF) {
+            alert('Library PDF tidak dapat dimuat. Pastikan Anda terhubung ke internet dan coba muat ulang halaman.');
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        let tableHtmlForPdf = '<table style="width:100%; border-collapse: collapse; font-family: Arial, sans-serif;">';
+        
+        const headerRow = tableElement.querySelector('thead tr');
+        const headerCells = headerRow.querySelectorAll('th');
+        tableHtmlForPdf += '<thead><tr>';
+        for (let i = 0; i < headerCells.length - 1; i++) {
+            tableHtmlForPdf += `<th style="background-color: #007bff; color: white; padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">${headerCells[i].textContent}</th>`;
+        }
+        tableHtmlForPdf += '</tr></thead>';
+
+        const bodyRows = tableElement.querySelectorAll('tbody tr');
+        tableHtmlForPdf += '<tbody>';
+        bodyRows.forEach(row => {
+            const bodyCells = row.querySelectorAll('td');
+            tableHtmlForPdf += '<tr>';
+            for (let i = 0; i < bodyCells.length - 1; i++) {
+                tableHtmlForPdf += `<td style="padding: 12px; text-align: left; border-bottom: 1px solid #ddd;">${bodyCells[i].innerHTML}</td>`;
+            }
+            tableHtmlForPdf += '</tr>';
+        });
+        tableHtmlForPdf += '</tbody></table>';
+
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.width = tableElement.offsetWidth + 'px';
+        tempContainer.innerHTML = `
+            <div style="font-family: Arial, sans-serif; text-align:center; font-size:20px; font-weight:bold; margin-bottom: 15px;">${title}</div>
+            ${tableHtmlForPdf}
+            <div style="font-family: Arial, sans-serif; text-align:right; margin-top: 20px;"><strong>Kepala Divisi</strong><br>RULI AMANDA</div>
+        `;
+        document.body.appendChild(tempContainer);
+
+        const canvas = await html2canvas(tempContainer, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+        const imgWidth = 277;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+
+        pdf.save(fileName);
+        document.body.removeChild(tempContainer);
+    };
+
+    // Event listener untuk tombol download PDF (rekapan utama)
+    downloadPdfBtn.addEventListener('click', async () => {
+        downloadPdfBtn.disabled = true;
+        downloadPdfBtn.textContent = 'Membuat PDF...';
+        try {
+            const tableElement = document.getElementById('transactionTable');
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}`;
+            await generatePdfFromTable(tableElement, `Rekapan_Nota_${dateStr}.pdf`, "REKAPAN NOTA HARIAN RURA PRATAMA");
+        } catch (error) {
+            console.error('Gagal membuat PDF:', error);
+            alert('Terjadi kesalahan saat membuat PDF. Silakan coba lagi.');
+        } finally {
+            downloadPdfBtn.disabled = false;
+            downloadPdfBtn.textContent = 'Download PDF';
+        }
+    });
+
+    // Event listener untuk tombol backup
+    backupAllBtn.addEventListener('click', async () => {
+        const transactions = getTransactions();
+
+        if (transactions.length === 0) {
+            alert('Tidak ada data untuk dibackup.');
+            return;
+        }
+        backupAllBtn.disabled = true;
+        backupAllBtn.textContent = 'Membuat Backup...';
+        try {
+            const now = new Date();
+            const dateTimeStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+            await generatePdfFromTable(document.getElementById('transactionTable'), `BACKUP_Data_Lengkap_${dateTimeStr}.pdf`, "BACKUP DATA LENGKAP RURA PRATAMA");
+            alert('Backup data berhasil dibuat dan diunduh!');
+        } catch (error) {
+            console.error('Gagal membuat backup:', error);
+            alert('Terjadi kesalahan saat membuat backup. Silakan coba lagi.');
+        } finally {
+            backupAllBtn.disabled = false;
+            backupAllBtn.textContent = 'Backup Semua Data ke PDF';
+        }
+    });
+
+    downloadLaporanPdfBtn.addEventListener('click', async () => {
+        if (reportDisplay.innerHTML.trim() === '' || reportDisplay.innerHTML.includes('Tidak ada data yang cocok dengan filter yang dipilih')) {
+            alert('Tampilkan laporan terlebih dahulu sebelum mendownload.');
+            return;
+        }
+        downloadLaporanPdfBtn.disabled = true;
+        downloadLaporanPdfBtn.textContent = 'Membuat PDF...';
+        try {
+            const tempContainer = document.createElement('div');
+            tempContainer.style.position = 'absolute';
+            tempContainer.style.left = '-9999px';
+            tempContainer.style.width = reportDisplay.scrollWidth + 'px';
+            tempContainer.innerHTML = `
+                <div style="font-family: Arial, sans-serif; text-align:center; font-size:20px; font-weight:bold; margin-bottom: 15px;">LAPORAN TRANSAKSI TERFILTER RURA PRATAMA</div>
+                ${reportDisplay.innerHTML}
+                <div style="font-family: Arial, sans-serif; text-align:right; margin-top: 20px;"><strong>Kepala Divisi</strong><br>RULI AMANDA</div>
+            `;
+            document.body.appendChild(tempContainer);
+            const canvas = await html2canvas(tempContainer, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+            const imgWidth = 277;
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+            pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}`;
+            pdf.save(`Laporan_Terfilter_${dateStr}.pdf`);
+            document.body.removeChild(tempContainer);
+        } catch (error) {
+            console.error('Gagal membuat PDF Laporan:', error);
+            alert('Terjadi kesalahan saat membuat PDF Laporan. Silakan coba lagi.');
+        } finally {
+            downloadLaporanPdfBtn.disabled = false;
+            downloadLaporanPdfBtn.textContent = 'Download Laporan PDF';
+        }
+    });
+
+    tableBody.addEventListener('click', (e) => {
+        if (e.target.classList.contains('edit-btn')) {
+            const idToEdit = parseInt(e.target.dataset.id);
+            populateFormForEdit(idToEdit);
+        }
+        if (e.target.classList.contains('delete-btn')) {
+            if (confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
+                const idToDelete = parseInt(e.target.dataset.id);
+                let transactions = getTransactions();
+                transactions = transactions.filter(t => t.id !== idToDelete);
+                saveTransactions(transactions);
+                renderTransactionTable();
+                updateSupplierFilter();
+            }
+        }
+    });
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const jumlahMasuk = parseFloat(document.getElementById('jumlahMasuk').value) || 0;
+        const jumlahTerjual = parseFloat(document.getElementById('jumlahTerjual').value) || 0;
+        const diEs = parseFloat(document.getElementById('diEs').value) || 0;
+        const selisih = (jumlahTerjual - jumlahMasuk + diEs).toFixed(2);
+        const notaRincian = parseFloat(document.getElementById('notaRincian').value) || 0;
+        const notaSupplier = parseFloat(document.getElementById('notaSupplier').value) || 0;
+        const pendapatanLain = notaRincian - notaSupplier;
+        const biaya = parseFloat(document.getElementById('biaya').value) || 0;
+        const komisi = parseFloat(document.getElementById('komisi').value) || 0;
+
+        const formData = {
+            tanggal: document.getElementById('tanggal').value,
+            namaSupplier: document.getElementById('namaSupplier').value,
+            jumlahMasuk: jumlahMasuk,
+            jumlahTerjual: jumlahTerjual,
+            diEs: diEs,
+            selisih: selisih,
+            komisi: komisi,
+            biaya: biaya,
+            notaRincian: notaRincian,
+            notaSupplier: notaSupplier,
+            pendapatanLain: pendapatanLain,
+        };
+
+        let transactions = getTransactions();
+
+        if (editingTransactionId) {
+            const index = transactions.findIndex(t => t.id === editingTransactionId);
+            if (index !== -1) {
+                transactions[index] = { ...formData, id: editingTransactionId };
+                alert('Transaksi berhasil diperbarui!');
+            }
+        } else {
+            const newTransaction = { ...formData, id: Date.now() };
+            transactions.push(newTransaction);
+            alert('Transaksi berhasil ditambahkan!');
+        }
+
+        saveTransactions(transactions);
+        renderTransactionTable();
+        updateSupplierFilter();
+        resetForm();
+    });
+
+    // Event: Tampilkan Laporan Terfilter
+    tampilkanLaporanBtn.addEventListener('click', () => {
+        const transactions = getTransactions();
+        const dariTanggal = document.getElementById('filterDariTanggal').value;
+        const sampaiTanggal = document.getElementById('filterSampaiTanggal').value;
+        const supplierFilter = document.getElementById('filterSupplier').value;
+
+        let filteredTransactions = transactions.filter(trans => {
+            const transDate = trans.tanggal;
+            const dateMatch = (!dariTanggal || transDate >= dariTanggal) && (!sampaiTanggal || transDate <= sampaiTanggal);
+            const supplierMatch = (supplierFilter === 'Semua' || trans.namaSupplier === supplierFilter);
+            return dateMatch && supplierMatch;
+        });
+        
+        let reportHTML = `<h3>Hasil Laporan</h3>`;
+        if (filteredTransactions.length === 0) {
+            reportHTML += `<p>Tidak ada data yang cocok dengan filter yang dipilih.</p>`;
+        } else {
+            reportHTML += `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Supplier</th>
+                                <th>Masuk (kg)</th>
+                                <th>Terjual (kg)</th>
+                                <th>Di Es (kg)</th>
+                                <th>Selisih (kg)</th>
+                                <th>Komisi (Rp)</th>
+                                <th>Biaya (Rp)</th>
+                                <th>Nota Jual (Rp)</th>
+                                <th>Nota Beli (Rp)</th>
+                                <th>Pendapatan Lain (Rp)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            const totals = filteredTransactions.reduce((acc, trans) => {
+                acc.jumlahMasuk += trans.jumlahMasuk;
+                acc.jumlahTerjual += trans.jumlahTerjual;
+                acc.selisih += parseFloat(trans.selisih);
+                acc.komisi += trans.komisi;
+                acc.biaya += trans.biaya;
+                acc.notaRincian += trans.notaRincian;
+                acc.notaSupplier += trans.notaSupplier;
+                acc.pendapatanLain += trans.pendapatanLain;
+                return acc;
+            }, {
+                jumlahMasuk: 0, jumlahTerjual: 0, selisih: 0, komisi: 0,
+                biaya: 0, notaRincian: 0, notaSupplier: 0, pendapatanLain: 0
+            });
+
+            filteredTransactions.forEach(trans => {
+                const selisihClass = parseFloat(trans.selisih) < 0 ? 'negative-value' : '';
+                const pendapatanLainClass = trans.pendapatanLain < 0 ? 'negative-value' : '';
+                
+                reportHTML += `
+                    <tr>
+                        <td>${formatDate(trans.tanggal)}</td>
+                        <td>${trans.namaSupplier}</td>
+                        <td>${trans.jumlahMasuk}</td>
+                        <td>${trans.jumlahTerjual}</td>
+                        <td>${trans.diEs}</td>
+                        <td><span class="${selisihClass}">${trans.selisih}</span></td>
+                        <td>${formatRupiah(trans.komisi)}</td>
+                        <td>${formatRupiah(trans.biaya)}</td>
+                        <td>${formatRupiah(trans.notaRincian)}</td>
+                        <td>${formatRupiah(trans.notaSupplier)}</td>
+                        <td><span class="${pendapatanLainClass}">${formatRupiah(trans.pendapatanLain)}</span></td>
+                    </tr>
+                `;
+            });
+            
+            reportHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            const labaKotor = totals.komisi - totals.biaya + totals.pendapatanLain;
+            const labaBersih = labaKotor * 0.6;
+            
+            const totalSelisihClass = totals.selisih < 0 ? 'negative-value' : '';
+            const totalPendapatanLainClass = totals.pendapatanLain < 0 ? 'negative-value' : '';
+            const labaKotorClass = labaKotor < 0 ? 'negative-value' : '';
+            const labaBersihClass = labaBersih < 0 ? 'negative-value' : '';
+
+            reportHTML += `
+                <div class="total-section">
+                    <h4>Total Keseluruhan:</h4>
+                    <table class="summary-table">
+                        <tr><td>Total Ikan Masuk</td><td>${totals.jumlahMasuk.toFixed(2)} kg</td></tr>
+                        <tr><td>Total Ikan Terjual</td><td>${totals.jumlahTerjual.toFixed(2)} kg</td></tr>
+                        <tr><td>Total Selisih</td><td class="${totalSelisihClass}">${totals.selisih.toFixed(2)} kg</td></tr>
+                        <tr><td>Total Komisi</td><td>${formatRupiah(totals.komisi)}</td></tr>
+                        <tr><td>Total Biaya</td><td>${formatRupiah(totals.biaya)}</td></tr>
+                        <tr><td>Total Nota Jual</td><td>${formatRupiah(totals.notaRincian)}</td></tr>
+                        <tr><td>Total Nota Beli</td><td>${formatRupiah(totals.notaSupplier)}</td></tr>
+                        <tr><td>Total Pendapatan Lain</td><td class="${totalPendapatanLainClass}">${formatRupiah(totals.pendapatanLain)}</td></tr>
+                        <tr class="labora"><td>Estimasi Laba Kotor</td><td class="${labaKotorClass}">${formatRupiah(labaKotor)}</td></tr>
+                        <tr class="labora"><td>Estimasi Laba Bersih (60%)</td><td class="${labaBersihClass}">${formatRupiah(labaBersih)}</td></tr>
+                    </table>
+                </div>
+            `;
+        }
+        reportDisplay.innerHTML = reportHTML;
+    });
+
+    // --- INISIALISASI ---
+    renderTransactionTable();
+    updateSupplierFilter();
+});
+</script>
+
+</body>
+</html>
